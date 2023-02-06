@@ -1,0 +1,79 @@
+#!/bin/bash
+
+# variables
+gar_dir="/usr/sap/GAR"
+gar_load_dir="/usr/sap/GAR_LOADER"
+log_file="gar_download.log"
+
+# Option 1: manual input
+# $1 this is variable key for running script
+if [ "$1" == "-m" ]; then
+  read -p "Clear log file Y(yes)/N(no) ? " clear_log
+    if [ "$clear_log" != "Y" ] && [ "$clear_log" != "N" ]; then
+    echo "Invalid input, please enter 'Y' or 'N'"
+    exit 1
+    fi
+  if [ "$clear_log" == "Y" ]; then
+    # delete line with "failed"
+    line_number=$(grep -n "failed" $log_file | tail -1 | cut -d: -f1)
+    sed -i "${line_number}d" $log_file
+  fi
+  if [ "$clear_log" == "N" ]; then 
+    if tail -1 "$log_file" | grep -q "failed"; then
+    echo "Last download failed, script will not continue"
+    echo "Please delete last line 'Download and unzip failed:date' in log file gar_download.log after resolve error"
+    exit 1
+    fi
+  fi
+  read -p "Enter the date for download GAR delta (YYYY.MM.DD): " date
+  # Check if date is in correct format
+  if ! [[ $date =~ ^[0-9]{4}\.[0-9]{2}\.[0-9]{2}$ ]]; then
+    echo "Error: invalid date format"
+    exit 1
+  fi
+  url="https://fias-file.nalog.ru/downloads/${date}/gar_delta_xml.zip"
+
+  # Check if the last entry in the log file is "failed"
+  touch ${log_file}
+  if tail -1 "$log_file" | grep -q "failed"; then
+    echo "Last download failed, script will not continue"
+    echo "Please delete last line 'Download and unzip failed:date' in log file gar_download.log after resolve error"
+    exit 1
+  fi
+# Option 2: automatic run
+elif [ "$1" == "-a" ]; then
+  date=$(date +%Y.%m.%d)
+  url="https://fias-file.nalog.ru/downloads/${date}/gar_delta_xml.zip"
+
+  # Check if the last entry in the log file is "failed"
+  touch ${log_file}
+  if tail -1 "$log_file" | grep -q "failed"; then
+    echo "Last download failed, script will not continue"
+    echo "Please delete last line 'Download and unzip failed:date' in log file gar_download.log after resolve error"
+    exit 1
+  fi
+
+else
+  echo "Invalid option. Please use -m for manual input or -a for automatic run."
+  exit 1
+fi
+
+# Remove the contents of the GAR directory
+rm -rf ${gar_dir}/*
+
+# Download the archive
+wget ${url} -P ${gar_dir}
+
+# Unzip the archive
+unzip ${gar_dir}/gar_delta_xml.zip -d ${gar_dir}
+
+# Check if unzip was successful
+if [ $? -eq 0 ]; then
+  echo "Download and unzip successful:"${date} >> ${gar_load_dir}/${log_file}
+  echo "Download and unzip successful:"${date}
+else
+  echo "Download and unzip failed:"${date} >> ${gar_load_dir}/${log_file}
+fi
+
+# Remove the downloaded archive
+rm ${gar_dir}/gar_delta_xml.zip
