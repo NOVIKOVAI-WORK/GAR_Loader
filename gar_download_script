@@ -2,29 +2,66 @@
 
 # variables
 gar_dir="/usr/sap/GAR"
-gar_load_dir="/usr/sap/GAR_LOADER"
+gar_script_dir="/usr/sap/GAR_LOADER"
 log_file="gar_download.log"
 
 # Option 1: manual input
 # $1 this is variable key for running script
 if [ "$1" == "-m" ]; then
-  read -p "Clear log file Y(yes)/N(no) ? " clear_log
-    if [ "$clear_log" != "Y" ] && [ "$clear_log" != "N" ]; then
-    echo "Invalid input, please enter 'Y' or 'N'"
-    exit 1
+  read -p "Clear failed logs y(yes)/n(no) ? " clear_log
+    if [ "$clear_log" != "y" ] && [ "$clear_log" != "n" ]; then
+      echo "Invalid input, please enter 'y' or 'n'"
+      exit 1
     fi
-  if [ "$clear_log" == "Y" ]; then
-    # delete line with "failed"
+    # Clear directory GAR
+      if [ "$clear_log" == "y" ]; then
+      read -p "Clear old files in directory GAR y(yes)/n(no) ? " clear_data
+        if [ "$clear_data" != "y" ] && [ "$clear_data" != "n" ]; then
+          echo "Invalid input, please enter 'y' or 'n'"
+          exit 1
+        fi
+        if [ "$clear_data" == "y" ]; then
+          rm -rf $gar_dir/*
+        fi
+      fi
+  if [ "$clear_log" == "y" ]; then
+    # delete line in the log file with "failed"
     line_number=$(grep -n "failed" $log_file | tail -1 | cut -d: -f1)
-    sed -i "${line_number}d" $log_file
-  fi
-  if [ "$clear_log" == "N" ]; then 
-    if tail -1 "$log_file" | grep -q "failed"; then
-    echo "Last download failed, script will not continue"
-    echo "Please delete last line 'Download and unzip failed:date' in log file gar_download.log after resolve error"
-    exit 1
+    if [ ! -z "$line_number" ]; then
+      sed -i "${line_number}d" $log_file
     fi
   fi
+   # check failed logs if set key n
+  if [ "$clear_log" == "n" ]; then
+    if [ "$clear_log" != "y" ] && [ "$clear_log" != "n" ]; then
+      echo "Invalid input, please enter 'y' or 'n'"
+      exit 1
+    fi
+      if tail -1 "$log_file" | grep -q "failed"; then
+        echo "Last download failed, script will not continue"
+        echo "Please delete last line 'Download and unzip failed:date' in log file gar_download.log after resolve error"
+        exit 1
+      fi
+      if [ "$clear_log" == "n" ]; then
+      read -p "Clear old files in directory GAR y(yes)/n(no) ? " clear_data
+        if [ "$clear_data" != "y" ] && [ "$clear_data" != "n" ]; then
+          echo "Invalid input, please enter 'y' or 'n'"
+          exit 1
+        fi
+        if [ "$clear_data" == "y" ]; then
+          rm -rf $gar_dir/*
+        fi
+      fi
+  fi
+  # Choise if you need download GAR delta or not
+  read -p "Do you need download GAR delta ? " download_choise
+    if [ "$download_choise" != "y" ] && [ "$download_choise" != "n" ]; then
+      echo "Invalid input, please enter 'y' or 'n'"
+      exit 1
+    fi
+      if [ "$download_choise" == "n" ]; then
+        exit 1
+      fi
   read -p "Enter the date for download GAR delta (YYYY.MM.DD): " date
   # Check if date is in correct format
   if ! [[ $date =~ ^[0-9]{4}\.[0-9]{2}\.[0-9]{2}$ ]]; then
@@ -34,19 +71,20 @@ if [ "$1" == "-m" ]; then
   url="https://fias-file.nalog.ru/downloads/${date}/gar_delta_xml.zip"
 
   # Check if the last entry in the log file is "failed"
-  touch ${log_file}
+
   if tail -1 "$log_file" | grep -q "failed"; then
     echo "Last download failed, script will not continue"
     echo "Please delete last line 'Download and unzip failed:date' in log file gar_download.log after resolve error"
     exit 1
   fi
 # Option 2: automatic run
+
 elif [ "$1" == "-a" ]; then
   date=$(date +%Y.%m.%d)
   url="https://fias-file.nalog.ru/downloads/${date}/gar_delta_xml.zip"
 
   # Check if the last entry in the log file is "failed"
-  touch ${log_file}
+
   if tail -1 "$log_file" | grep -q "failed"; then
     echo "Last download failed, script will not continue"
     echo "Please delete last line 'Download and unzip failed:date' in log file gar_download.log after resolve error"
@@ -69,10 +107,11 @@ unzip ${gar_dir}/gar_delta_xml.zip -d ${gar_dir}
 
 # Check if unzip was successful
 if [ $? -eq 0 ]; then
-  echo "Download and unzip successful:"${date} >> ${gar_load_dir}/${log_file}
+  echo "Download and unzip successful:"${date} >> ${gar_script_dir}/${log_file}
   echo "Download and unzip successful:"${date}
 else
-  echo "Download and unzip failed:"${date} >> ${gar_load_dir}/${log_file}
+  echo "Download and unzip failed:"${date} >> ${gar_script_dir}/${log_file}
+  echo "Download and unzip failed:"${date}
 fi
 
 # Remove the downloaded archive
