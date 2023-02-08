@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # variables
-gar_dir="/usr/sap/GAR"
-gar_script_dir="/usr/sap/GAR_LOADER"
+gar_dir="/usr/sap/tmp/GAR"
+gar_script_dir="/usr/sap/tmp/GAR_LOADER"
 log_file="gar_download.log"
 
 #=========================================================================================================================
@@ -29,7 +29,7 @@ if [ "$1" == "-m" ]; then
       if [ "$clear_log" == "y" ] || [ "$clear_log" == "n" ]; then
       # loop: check input correct key y or n
       while true; do
-      read -p "Clear old files in directory GAR y(yes)/n(no) ? " clear_data
+      read -p "Clear all content in directory GAR y(yes)/n(no) ? " clear_data
         if [ "$clear_data" == "y" ] || [ "$clear_data" == "n" ]; then
           break
         fi
@@ -86,7 +86,19 @@ fi
 # Remove the contents of the GAR directory
 rm -rf ${gar_dir}/*
 # Download the archive
-wget ${url} -P ${gar_dir}
+# variable number of attempts connection
+attempt=0
+while [ $attempt -lt 5 ]; do
+  wget ${url} -P ${gar_dir}
+    if [ $? -eq 0 ]; then
+      break
+    fi
+  attempt=$((attempt + 1))
+  echo "failed: connection time out:"${date} >> ${gar_script_dir}/${log_file}
+done
+if [ $attempt -eq 5 ]; then
+  echo "Error: failed to download file after 10 attempts:"${date} >> ${gar_script_dir}/${log_file}
+fi
 # Unzip the archive
 unzip ${gar_dir}/gar_delta_xml.zip -d ${gar_dir}
 # Check if unzip was successful
