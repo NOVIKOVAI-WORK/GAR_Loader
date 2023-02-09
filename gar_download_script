@@ -22,7 +22,7 @@ if [ "$1" == "-m" ]; then
     # delete line in the log file with "failed"
     line_number=$(grep -n "failed" $log_file | tail -1 | cut -d: -f1)
     if [ ! -z "$line_number" ]; then
-      sed -i "${line_number}d" $log_file
+      sed -i "/failed/d" $log_file
     fi
   fi
     # Clear directory GAR
@@ -91,13 +91,13 @@ attempt=0
 while [ $attempt -lt 5 ]; do
   wget ${url} -P ${gar_dir}
     if [ $? -eq 0 ]; then
-      break
+    break
     fi
   attempt=$((attempt + 1))
-  echo "failed: connection time out:"${date} >> ${gar_script_dir}/${log_file}
+    echo "failed: connection time out:"${date} >> ${gar_script_dir}/${log_file}
 done
 if [ $attempt -eq 5 ]; then
-  echo "Error: failed to download file after 10 attempts:"${date} >> ${gar_script_dir}/${log_file}
+  echo "Error: failed to download file after 5 attempts:"${date} >> ${gar_script_dir}/${log_file}
 fi
 # Unzip the archive
 unzip ${gar_dir}/gar_delta_xml.zip -d ${gar_dir}
@@ -108,6 +108,7 @@ if [ $? -eq 0 ]; then
 else
   echo "Download and unzip failed:"${date} >> ${gar_script_dir}/${log_file}
   echo "Download and unzip failed:"${date}
+  rm -rf ${gar_dir}/*
 fi
 # Remove the downloaded archive
 rm ${gar_dir}/gar_delta_xml.zip
