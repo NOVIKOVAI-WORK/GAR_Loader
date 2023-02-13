@@ -4,6 +4,10 @@
 gar_dir="/usr/sap/tmp/GAR"
 gar_script_dir="/usr/sap/tmp/GAR_LOADER"
 log_file="gar_download.log"
+date_log=$(date +%d.%m.%Y\ %H:%M:%S)
+sid=SYSTEMSID
+addr=MAIL@MAIL.com
+subj_error="$sid GAR DOWNLOAD FAILED!" 
 
 #=========================================================================================================================
 # Option 1: manual input
@@ -12,17 +16,17 @@ if [ "$1" == "-m" ]; then
 # loop: check input correct key y or n
   while true; do
   # clear failed logs
-  read -p "Clear failed logs y(yes)/n(no) ? " clear_log
+  read -p "Removed STATUS ERROR y(yes)/n(no) ? " clear_log
     if [ "$clear_log" == "y" ] || [ "$clear_log" == "n" ]; then
       break
     fi
     echo "Invalid input, please enter 'y' or 'n'"
   done
   if [ "$clear_log" == "y" ]; then
-    # delete line in the log file with "failed"
-    line_number=$(grep -n "failed" $log_file | tail -1 | cut -d: -f1)
+    # delete line in the log file with STATUS ERROR
+    line_number=$(grep -n "STATUS ERROR" $log_file | tail -1 | cut -d: -f1)
     if [ ! -z "$line_number" ]; then
-      sed -i "/failed/d" $log_file
+      sed -i "/STATUS ERROR/d" $log_file
     fi
   fi
     # Clear directory GAR
@@ -41,10 +45,10 @@ if [ "$1" == "-m" ]; then
       fi
    # check failed logs if set key n
   if [ "$clear_log" == "n" ]; then
-    # Check if the last entry in the log file is "failed"
-      if tail -1 "$log_file" | grep -q "failed"; then
+    # Check if the last entry in the log file is STATUS ERROR
+      if tail -1 "$log_file" | grep -q "STATUS ERROR"; then
         echo "Last download failed, script will not continue"
-        echo "Please delete last line 'Download and unzip failed:date' in log file gar_download.log after resolve error"
+        echo "Please delete line STATUS ERROR in log file gar_download.log after resolve error"
         exit 1
       fi
   fi
@@ -73,12 +77,14 @@ done
 elif [ "$1" == "-a" ]; then
   date=$(date +%Y.%m.%d)
   url="https://fias-file.nalog.ru/downloads/${date}/gar_delta_xml.zip"
-  # Check if the last entry in the log file is "failed"
-  if tail -1 "$log_file" | grep -q "failed"; then
-    echo "Last download failed, script will not continue"
-    echo "Please delete last line 'Download and unzip failed:date' in log file gar_download.log after resolve error"
-    exit 1
-  fi
+  # Check "STATUS ERROR" in log file
+  line_number=$(grep -n "STATUS ERROR" $log_file | tail -1 | cut -d: -f1)
+    if [ ! -z "$line_number" ]; then
+      sed -i "/STATUS ERROR/d" $log_file
+      echo "Last download failed, script will not continue"
+      echo "Please delete line STATUS ERROR in log file gar_download.log after resolve error"
+      exit 1
+    fi
 else
   echo "Invalid option. Please use -m for manual input or -a for automatic run."
   exit 1
@@ -88,26 +94,28 @@ rm -rf ${gar_dir}/*
 # Download the archive
 # variable number of attempts connection
 attempt=0
-while [ $attempt -lt 5 ]; do
-  wget ${url} -P ${gar_dir}
+while [ $attempt -lt 3 ]; do
+  wget --tries=3 ${url} -P ${gar_dir}
     if [ $? -eq 0 ]; then
     break
     fi
   attempt=$((attempt + 1))
-    echo "failed: connection time out:"${date} >> ${gar_script_dir}/${log_file}
+    echo ${date_log}":failed: connection time out" >> ${gar_script_dir}/${log_file}
 done
-if [ $attempt -eq 5 ]; then
-  echo "Error: failed to download file after 5 attempts:"${date} >> ${gar_script_dir}/${log_file}
+if [ $attempt -eq 3 ]; then
+  echo ${date_log}":failed: to download file after 3 attempts" >> ${gar_script_dir}/${log_file}
 fi
 # Unzip the archive
 unzip ${gar_dir}/gar_delta_xml.zip -d ${gar_dir}
 # Check if unzip was successful
 if [ $? -eq 0 ]; then
-  echo "Download and unzip successful:"${date} >> ${gar_script_dir}/${log_file}
-  echo "Download and unzip successful:"${date}
+  echo ${date_log}":Download and unzip successful" >> ${gar_script_dir}/${log_file}
+  echo ${date_log}":Download and unzip successful"
 else
-  echo "Download and unzip failed:"${date} >> ${gar_script_dir}/${log_file}
-  echo "Download and unzip failed:"${date}
+  echo ${date_log}":Download and unzip failed" >> ${gar_script_dir}/${log_file}
+  echo ${date_log}":STATUS ERROR" >> ${gar_script_dir}/${log_file}
+  echo ${date_log}" Download and unzip delta GAR failed: STATUS ERROR" | mailx -s "${subj_error}" $addr 
+  echo ${date_log}":Download and unzip failed"
   rm -rf ${gar_dir}/*
 fi
 # Remove the downloaded archive
